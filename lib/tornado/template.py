@@ -89,6 +89,7 @@ import re
 
 from tornado import escape
 
+
 class Template(object):
     """A compiled template.
 
@@ -114,6 +115,7 @@ class Template(object):
     def generate(self, **kwargs):
         """Generate this template with the given arguments."""
         namespace = {
+            "unescape": escape.xhtml_unescape,
             "escape": escape.xhtml_escape,
             "xhtml_escape": escape.xhtml_escape,
             "url_escape": escape.url_escape,
@@ -220,7 +222,6 @@ class _File(_Node):
 
     def each_child(self):
         return (self.body,)
-
 
 
 class _ChunkList(_Node):

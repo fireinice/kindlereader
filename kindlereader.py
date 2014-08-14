@@ -36,10 +36,13 @@ from libgreader import *
 from tornado import template
 from tornado import escape
 from BeautifulSoup import BeautifulSoup
-
 import socket, urllib2, urllib
-socket.setdefaulttimeout(20)
+try:
+    from PIL import Image
+except ImportError:
+    Image = None
 
+socket.setdefaulttimeout(20)
 iswindows = 'win32' in sys.platform.lower() or 'win64' in sys.platform.lower()
 isosx     = 'darwin' in sys.platform.lower()
 isfreebsd = 'freebsd' in sys.platform.lower()
@@ -189,12 +192,12 @@ TEMPLATES['toc.ncx'] = """<?xml version="1.0" encoding="UTF-8"?>
 <meta name="dtb:totalPageCount" content="0" />
 <meta name="dtb:maxPageNumber" content="0" />
 </head>
-<docTitle><text>{{ user['userName'] }}'s Google reader</text></docTitle>
+<docTitle><text>{{ user['userName'] }}'s Daily Digest</text></docTitle>
 <docAuthor><text>{{ user['userName'] }}</text></docAuthor>
 <navMap>
     {% if format == 'periodical' %}
     <navPoint class="periodical">
-        <navLabel><text>{{ user['userName'] }}'s Google reader</text></navLabel>
+        <navLabel><text>{{ user['userName'] }}'s Daily Digest</text></navLabel>
         <content src="content.html" />
         {% for feed in feeds %}
         {% if feed.item_count > 0 %}
@@ -287,32 +290,39 @@ def find_kindlegen_prog():
 kindlegen = find_kindlegen_prog()
 q = Queue.Queue(0)
 
+
 class ImageDownloader(threading.Thread):
     global q
-    def __init__(self,threadname):
-        threading.Thread.__init__(self,name=threadname)
-        
+
+    def __init__(self, threadname):
+        threading.Thread.__init__(self, name=threadname)
+
     def run(self):
         while True:
-            i=q.get()
-            logging.info("download: %s" % i['url'])
+            i = q.get()
             try:
-                urllib.urlretrieve(i['url'],i['filename'])
-            except Exception,e:
+                urllib.urlretrieve(i['url'], i['filename'])
+                if Image:
+                    try:
+                        img = Image.open(i['filename'])
+                        new_img = img.convert("L")
+                        new_img.save(i['filename'])
+                    except:
+                        pass
+                logging.info("download: %s" % i['url'])
+            except Exception, e:
                 logging.error("Failed: %s" % e)
                 # q.put(i)
-                
             q.task_done()
+
 
 class KindleReader(object):
     """docstring for KindleReader"""
     global q
-    
     work_dir = None
     config = None
     template_dir = None
     password = None
-    
     remove_tags = ['script', 'object','video','embed','iframe','noscript', 'style']
     remove_attributes = ['class','id','title','style','width','height','onclick']
     max_image_number = 0
@@ -338,7 +348,6 @@ class KindleReader(object):
             self.password = getpass.getpass("please input your google reader's password:")
             
     def get_config(self, section, name):
-        
         try:
             return self.config.get(section, name).strip()
         except:
@@ -349,7 +358,7 @@ class KindleReader(object):
     
         mail_host = self.get_config('mail', 'host')
         mail_port = self.get_config('mail', 'port')
-        mail_ssl = self.get_config('mail', 'ssl')
+        mail_ssl = self.config.getint('mail', 'ssl')
         mail_from = self.get_config('mail', 'from')
         mail_to = self.get_config('mail', 'to')
         mail_username = self.get_config('mail', 'username')
@@ -386,14 +395,12 @@ class KindleReader(object):
         msg.attach(att)
 
         try:
-            if mail_ssl in ['1', 1]:
-                mail = smtplib.SMTP_SSL(timeout=60)
-            else:
-                mail = smtplib.SMTP(timeout=60)
-
+            mail = smtplib.SMTP(timeout=60)
             mail.connect(mail_host, int(mail_port))
             mail.ehlo()
-
+            if mail_ssl:
+                mail.starttls()
+                mail.ehlo()
             if mail_username and mail_password:
                 mail.login(mail_username, mail_password)
 
@@ -401,12 +408,10 @@ class KindleReader(object):
             mail.close()
         except Exception, e:
             logging.error("fail:%s" % e)
-        
-    def make_mobi(self, user, feeds, format = 'book'):
+
+    def make_mobi(self, user, feeds, format='book'):
         """docstring for make_mobi"""
-        
         logging.info("generate .mobi file start... ")
-        
         data_dir = os.path.join(self.work_dir, 'data')
         if not os.path.exists(data_dir):
             os.makedirs(data_dir)
@@ -414,32 +419,35 @@ class KindleReader(object):
         for tpl in TEMPLATES:
             if tpl is 'book.html':
                 continue
-                
+
             t = template.Template(TEMPLATES[tpl])
             content = t.generate(
-                user = user,
-                feeds = feeds,
-                uuid = uuid.uuid1(),
-                format = format
+                user=user,
+                feeds=feeds,
+                uuid=uuid.uuid1(),
+                format=format
             )
-            
+
             fp = open(os.path.join(data_dir, tpl), 'wb')
-            fp.write(content)
+            content = content.decode('utf-8', 'ignore').encode('utf-8')
+            fp.write(escape.xhtml_unescape(content))
             fp.close()
 
-        mobi_file = "GoogleReader(%s).mobi" % time.strftime('%m-%dT%Hh%Mm')
+        pre_mobi_file = "TheOldReader_%s" % time.strftime('%m-%dT%Hh%Mm')
         opf_file = os.path.join(data_dir, "content.opf")
-
         subprocess.call('%s %s -o "%s" > log.txt' %
-                (kindlegen, opf_file, mobi_file), shell=True)
+                        (kindlegen, opf_file, pre_mobi_file), shell=True)
+        pre_mobi_file = os.path.join(data_dir, pre_mobi_file)
+        mobi_file = pre_mobi_file+".mobi"
+        subprocess.call('python kindlestrip_v136.py "%s" "%s" >> log.txt' %
+                        (pre_mobi_file, mobi_file), shell=True)
 
-        mobi_file = os.path.join(data_dir, mobi_file)
         if os.path.isfile(mobi_file) is False:
             logging.error("failed!")
             return None
         else:
             fsize = os.path.getsize(mobi_file)
-            logging.info(".mobi save as: %s(%.2fMB)" %  (mobi_file, fsize/1048576))
+            logging.info(".mobi save as: %s(%.2fMB)" %  (mobi_file, float(fsize)/(1024*1024)))
             return mobi_file
 
     def parse_summary(self, summary, ref):
@@ -469,7 +477,6 @@ class KindleReader(object):
             else:
                 try:
                     localimage, fullname = self.parse_image(img['src'], ref)
-                    
                     if os.path.isfile(fullname) is False:
                         images.append({
                             'url':img['src'],
@@ -527,7 +534,7 @@ class KindleReader(object):
 
         if not password and self.password:
             password = self.password
-        
+
         if not username or not password:
             raise Exception("google reader's username or password is empty!")
 
@@ -536,26 +543,25 @@ class KindleReader(object):
         user = reader.getUserInfo()
         reader.buildSubscriptionList()
         categoires = reader.getCategories()
-        
         select_categories = self.get_config('reader', 'select_categories')
         skip_categories = self.get_config('reader', 'skip_categories')
-        
+
         selects = []
         if select_categories:
             select_categories = select_categories.split(',')
 
             for c in select_categories:
-                if c: selects.append(c.encode('utf-8').strip())
-            
+                if c:
+                    selects.append(c.encode('utf-8').strip())
             select_categories = None
-        
+
         skips = []
         if not selects and skip_categories:
             skip_categories = skip_categories.split(',')
 
             for c in skip_categories:
-                if c: skips.append(c.encode('utf-8').strip())
-            
+                if c:
+                    skips.append(c.encode('utf-8').strip())
             skip_categories = None
 
         feeds = {}
@@ -580,36 +586,28 @@ class KindleReader(object):
                     fd = None
                 else:
                     skiped = True
-            
             if skiped:
                 if iswindows:
                     category.label = category.label.encode("gbk")
-                    
                 logging.info('skip category: %s' % category.label)
-        
-        max_items_number = self.get_config('reader', 'max_items_number')
-        mark_read = self.get_config('reader', 'mark_read')
-        exclude_read = self.get_config('reader', 'exclude_read')
-        max_image_per_article = self.get_config('reader', 'max_image_per_article')
 
-        try: 
+        max_items_number = self.config.getint('reader', 'max_items_number')
+        mark_read = self.config.getint('reader', 'mark_read')
+        exclude_read = self.config.getint('reader', 'exclude_read')
+        max_image_per_article = self.config.getint(
+            'reader', 'max_image_per_article')
+
+        try:
             max_image_per_article = int(max_image_per_article)
             self.max_image_number = max_image_per_article
         except:
             pass
-        
-        if max_items_number and max_items_number.isdigit():
-            max_items_number = int(max_items_number)
-        else:
+
+        if not max_items_number:
             max_items_number = 50
-                
-        if exclude_read is None or not exclude_read.isdigit() or int(exclude_read) is 1:
-            exclude_read = True
-        else:
-            exclude_read = False
-            
-        feed_idx,work_idx,updated_items = 0, 1, 0
-        
+
+        feed_idx, work_idx, updated_items = 0, 1, 0
+
         feed_num, current_feed = len(feeds), 0
         updated_feeds = []
         downing_images = []
@@ -618,42 +616,38 @@ class KindleReader(object):
 
             current_feed = current_feed + 1
             logging.info("[%s/%s]: %s" % (current_feed, feed_num, feed.id))
-            
             try:
-                feed_data = reader.getFeedContent(feed, exclude_read, number=max_items_number)
-        
+                feed_data = reader.getFeedContent(
+                    feed, exclude_read, number=max_items_number)
+                if not feed_data:
+                    continue
+
                 item_idx = 1
                 for item in feed_data['items']:
                     for category in item.get('categories', []):
                         if category.endswith('/state/com.google/reading-list'):
                             content = item.get('content', item.get('summary', {})).get('content', '')
                             url     = None
-
                             for alternate in item.get('alternate', []):
                                 if alternate.get('type', '') == 'text/html':
                                     url = alternate['href']
                                     break
-                            
                             if content:
                                 item['content'], images = self.parse_summary(content, url)
                                 item['idx'] = item_idx
                                 item = Item(reader, item, feed)
                                 item_idx += 1
-                            
                                 downing_images += images
-                            
                             break
-
                 feed.item_count = len(feed.items)
                 updated_items += feed.item_count
-            
                 if mark_read:
                     if feed.item_count >= max_items_number:
                         for item in feed.items:
                             item.markRead()
                     elif feed.item_count > 0:
                         reader.markFeedAsRead(feed)
-        
+
                 if feed.item_count > 0:
                     feed_idx += 1
                     feed.idx = feed_idx
@@ -668,7 +662,6 @@ class KindleReader(object):
         if downing_images:
             for i in downing_images:
                 q.put(i)
-                
             threads=[]
             for i in range(self.thread_numbers):
                 t = ImageDownloader('Thread %s'%(i+1))
@@ -677,15 +670,12 @@ class KindleReader(object):
                 t.setDaemon(True)
                 t.start()
             q.join()
-        
+
         if updated_items > 0:
             mail_enable = self.get_config('mail', 'mail_enable')
-                       
             kindle_format = self.get_config('general', 'kindle_format')
-            
             if kindle_format not in ['book', 'periodical']:
                 kindle_format = 'book'
-           
             mobi_file = self.make_mobi(user, updated_feeds, kindle_format)
 
             if mobi_file and mail_enable == '1':
@@ -696,46 +686,45 @@ class KindleReader(object):
             logging.info("no feed update.")
 
 if __name__ == '__main__':
-    
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s:%(msecs)03d %(levelname)-8s %(message)s',
+    logging.basicConfig(level=logging.INFO,
+        format='%(asctime)s:%(msecs)03d %(filename)s  %(lineno)03d %(levelname)-8s %(message)s',
         datefmt='%m-%d %H:%M')
-    
     conf_file = os.path.join(work_dir, "config.ini")
 
     if os.path.isfile(conf_file) is False:
         logging.error("config file '%s' not found" % conf_file)
         sys.exit(1)
-    
+
     config = ConfigParser.ConfigParser()
 
     try:
         config.readfp(codecs.open(conf_file, "r", "utf-8-sig"))
     except Exception, e:
         config.readfp(codecs.open(conf_file, "r", "utf-8"))
-        
+
     if not kindlegen:
         logging.error("Can't find kindlegen")
         sys.exit(1)
-        
+
     st = time.time()
     logging.info("welcome, start ...")
-        
     try:
         kr = KindleReader(work_dir=work_dir, config=config)
         kr.main()
     except Exception, e:
         logging.info("Error: %s " % e)
+        import traceback
+        logging.info(traceback.format_exc(e))
 
     logging.info("used time %.2fs" % (time.time()-st))
     logging.info("done.")
-    
     try:
-        if self.config.get(section, name).strip() in ['1', 1]:
+        if config.get('general', 'auto_exit').strip() in ['1', 1]:
             auto_exit = True
         else:
             auto_exit = False
     except:
         auto_exit = False
-        
+
     if not auto_exit:
         raw_input("Press any key to exit...")
