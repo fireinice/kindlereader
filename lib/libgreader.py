@@ -620,6 +620,9 @@ class GoogleReader(object):
             parameters['c'] = continuation
         if number:
             parameters['n'] = number
+        if None:
+            last_update_time = int(time.time()) - 24*60*60
+            parameters['nt'] = last_update_time
         parameters['s'] = urlquote(feed_id)
         contentJson = self.httpGet(url+'/ids/', parameters)
         item_infos = json.loads(contentJson, strict=False)
