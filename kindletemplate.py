@@ -3,7 +3,7 @@ TEMPLATES['content.html'] = """<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-<title>{{ user }}'s kindle reader</title>
+<title>{{ user['userName'] }}'s Daily Digest</title>
 <style type="text/css">
 body{
 font-size: 1.1em;
@@ -55,7 +55,7 @@ page-break-after: always;
 </head>
 <body>
   <div id="cover">
-    <h1 id="title">{{ user }}'s kindle reader</h1>
+    <h1 id="title">{{ user['username }}'s Daily Digest</h1>
     <a href="#content">Go straight to first item</a><br />
     {{ datetime.datetime.utcnow().strftime("%m/%d %H:%M") }}
   </div>
@@ -143,12 +143,12 @@ TEMPLATES['toc.ncx'] = """<?xml version="1.0" encoding="UTF-8"?>
 <meta name="dtb:totalPageCount" content="0" />
 <meta name="dtb:maxPageNumber" content="0" />
 </head>
-<docTitle><text>{{ user }}'s kindle reader</text></docTitle>
-<docAuthor><text>{{ user }}</text></docAuthor>
+<docTitle><text>{{ user['userName'] }}'s Daily Digest</text></docTitle>
+<docAuthor><text>{{ user['userName'] }}</text></docAuthor>
 <navMap>
 {% if format == 'periodical' %}
 <navPoint class="periodical">
-<navLabel><text>{{ user }}'s kindle reader</text></navLabel>
+<navLabel><text>{{ user['userName'] }}'s Daily Digest</text></navLabel>
 <content src="content.html" />
 {% set feed_idx=0 %}
 {% for feed in feeds %}
@@ -171,7 +171,7 @@ TEMPLATES['toc.ncx'] = """<?xml version="1.0" encoding="UTF-8"?>
 </navPoint>
 {% else %}
 <navPoint class="book">
-<navLabel><text>{{ user }}'s kindle reader</text></navLabel>
+<navLabel><text>{{ user['userName'] }}'s Daily Digest</text></navLabel>
 <content src="content.html" />
 {% set feed_idx=0 %}
 {% for feed in feeds %}
@@ -195,15 +195,15 @@ TEMPLATES['content.opf'] = """<?xml version="1.0" encoding="utf-8"?>
 <metadata>
 <dc-metadata xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:opf="http://www.idpf.org/2007/opf">
 {% if format == 'periodical' %}
-<dc:title>{{ user }}'s kindle reader</dc:title>
+<dc:title>{{ user['userName'] }}'s Daily Digest</dc:title>
 {% else %}
-<dc:title>{{ user }}'s kindle reader({{ datetime.datetime.utcnow().strftime("%m/%d %H:%M") }})</dc:title>
+<dc:title>{{ user['userName'] }}'s Daily Digest({{ datetime.datetime.utcnow().strftime("%m/%d %H:%M") }})</dc:title>
 {% end %}
 <dc:language>zh-CN</dc:language>
-<dc:identifier id="uid">{{ user }}{{ datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ") }}</dc:identifier>
+<dc:identifier id="uid">{{ user['userName'] }}{{ datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ") }}</dc:identifier>
 <dc:creator>kindlereader</dc:creator>
 <dc:publisher>kindlereader</dc:publisher>
-<dc:subject>{{ user }}'s kindle reader</dc:subject>
+<dc:subject>{{ user['userName'] }}'s Daily Digest</dc:subject>
 <dc:date>{{ datetime.datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ") }}</dc:date>
 <dc:description></dc:description>
 </dc-metadata>
