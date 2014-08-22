@@ -55,7 +55,7 @@ page-break-after: always;
 </head>
 <body>
   <div id="cover">
-    <h1 id="title">{{ user['username }}'s Daily Digest</h1>
+    <h1 id="title">{{ user['userName'] }}'s Daily Digest</h1>
     <a href="#content">Go straight to first item</a><br />
     {{ datetime.datetime.utcnow().strftime("%m/%d %H:%M") }}
   </div>
@@ -125,8 +125,12 @@ page-break-after: always;
 </h2>
 {% if item.published %}{{ item.published }}{% end %}
 <a href="#articleSignal_{{ feed_idx }}_{{ item.idx }}">Return Feed</a>
+&nbsp;&nbsp;
+{% if item.pocket_info %}<a href="{{ item.pocket_info }}">Send to Pocket</a>{% end %}
 <div>{{ item.content }}</div>
 <a href="#articleSignal_{{ feed_idx }}_{{ item.idx }}">Return Feed</a>
+&nbsp;&nbsp;
+{% if item.pocket_info %}<a href="{{ item.pocket_info }}">Send to Pocket</a>{% end %}
 </div>
 {% end %}
 </div>

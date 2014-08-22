@@ -23,6 +23,7 @@ import urllib
 import urllib2
 import urlparse
 import time
+from RelatedServices import PocketService
 
 try:
     import json
@@ -313,23 +314,28 @@ class Item(object):
             self.published = time.strftime('%m/%d %H:%M', time.localtime(self.published))
                 
         # check original url
-        self.url    = None
+        self.url = None
         for alternate in item.get('alternate', []):
             if alternate.get('type', '') == 'text/html':
                 self.url = alternate['href']
                 break
-                
+
+        self.pocket_info = None
+        if self.url:
+            self.pocket_info = PocketService.getPocketInfo(
+                self.url, self.title)
         # check status
-        self.read    = False
+        self.read = False
         self.starred = False
-        self.shared  = False
+        self.shared = False
         for category in item.get('categories', []):
             if category.endswith('/state/com.google/read'):
                 self.read = True
             elif category.endswith('/state/com.google/starred'):
                 self.starred = True
             elif category in ('user/-/state/com.google/broadcast',
-                              'user/%s/state/com.google/broadcast' % self.googleReader.userId):
+                              'user/%s/state/com.google/broadcast' %
+                              self.googleReader.userId):
                 self.shared = True
 
         self.canUnread = item.get('isReadStateLocked', 'false') != 'true'
