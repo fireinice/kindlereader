@@ -590,10 +590,10 @@ class GoogleReader(object):
                 self.orphanFeeds.append(feed)
 
             self._addFeed(feed)
-             
         specialUnreads = [id for id in unreadById
-                            if id.find('user/%s/state/com.google/' % self.userId) != -1]
-        
+                          if id.find(
+                          'user/%s/state/com.google/' % self.userId)
+                          != -1]
         for type in self.specialFeeds:
             feed = self.specialFeeds[type]
             feed.unread = 0
@@ -601,12 +601,13 @@ class GoogleReader(object):
                 if id.endswith('/%s' % type):
                     feed.unread = unreadById.get(id, 0)
                     break
-                
         return True
-        
-    def _getFeedContent(self, url, feed_id, excludeRead=False, continuation=None, number=None):
+
+    def _getFeedContent(self, url, feed_id, excludeRead=False,
+                        continuation=None, number=None, start_time=None):
         """
-        A list of items (from a feed, a category or from URLs made with SPECIAL_ITEMS_URL)
+        A list of items (from a feed, a category or from URLs made with
+        SPECIAL_ITEMS_URL)
 
         Returns a dict with
           - id (str, feed's id)
@@ -617,7 +618,8 @@ class GoogleReader(object):
             - title (str, page title)
             - id (str)
             - content (dict with content and direction)
-            - categories (list of categories including states or ones provided by the feed owner)
+            - categories (list of categories including states or
+            ones provided by the feed owner)
         """
         parameters = {}
         if excludeRead:
@@ -626,9 +628,9 @@ class GoogleReader(object):
             parameters['c'] = continuation
         if number:
             parameters['n'] = number
-        if None:
-            last_update_time = int(time.time()) - 24*60*60
-            parameters['nt'] = last_update_time
+        if start_time:
+            print "start from %d" % start_time
+            parameters['nt'] = start_time
         parameters['s'] = urlquote(feed_id)
         contentJson = self.httpGet(url+'/ids/', parameters)
         item_infos = json.loads(contentJson, strict=False)
@@ -647,22 +649,26 @@ class GoogleReader(object):
         for item in items:
             objects.append(Item(self, item, parent))
         return objects
-        
-    def getFeedContent(self, feed, excludeRead=False, continuation=None, number=None):
+
+    def getFeedContent(self, feed, excludeRead=False,
+                       continuation=None, number=None, start_time=None):
         """
         Return items for a particular feed
         """
-        return self._getFeedContent(feed.fetchUrl, feed.id, excludeRead, continuation, number)
-        
-    def getCategoryContent(self, category, excludeRead=False, continuation=None, number=None):
+        return self._getFeedContent(feed.fetchUrl, feed.id, excludeRead,
+                                    continuation, number, start_time)
+
+    def getCategoryContent(self, category, excludeRead=False,
+                           continuation=None, number=None):
         """
         Return items for a particular category
         """
         if category.id is GoogleReader.UNCATEGORIZED_ID:
             return None
-        
-        return self._getFeedContent(category.fetchUrl, excludeRead, continuation, number)
-        
+
+        return self._getFeedContent(category.fetchUrl, excludeRead,
+                                    continuation, number)
+
     def removeItemTag(self, item, tag):
         return self.httpPost(GoogleReader.EDIT_TAG_URL, {'i': item.id, 'r': tag, 'ac': 'edit-tags', 'T':self.token })
             

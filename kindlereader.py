@@ -40,6 +40,7 @@ try:
     from PIL import Image
 except ImportError:
     Image = None
+from KVData import KVData
 
 socket.setdefaulttimeout(20)
 
@@ -124,10 +125,9 @@ class KindleReader(object):
             return self.config.get(section, name).strip()
         except:
             return None
-      
+
     def sendmail(self, data):
         """send html to kindle"""
-    
         mail_host = self.get_config('mail', 'host')
         mail_port = self.get_config('mail', 'port')
         mail_ssl = self.config.getint('mail', 'ssl')
@@ -135,21 +135,15 @@ class KindleReader(object):
         mail_to = self.get_config('mail', 'to')
         mail_username = self.get_config('mail', 'username')
         mail_password = self.get_config('mail', 'password')
-        
         if not mail_from:
             raise Exception("'mail from' is empty")
-        
         if not mail_to:
             raise Exception("'mail to' is empty")
-        
         if not mail_host:
             raise Exception("'mail host' is empty")
-            
         if not mail_port:
             mail_port = 25
-            
         logging.info("send mail to %s ... " % mail_to)
-    
         msg = MIMEMultipart()
         msg['from'] = mail_from
         msg['to'] = mail_to
@@ -381,6 +375,7 @@ class KindleReader(object):
         feed_num, current_feed = len(feeds), 0
         updated_feeds = []
         downing_images = []
+        kv_data = KVData('data/kv')
         for feed_id in feeds:
             feed = feeds[feed_id]
 
@@ -388,7 +383,9 @@ class KindleReader(object):
             logging.info("[%s/%s]: %s" % (current_feed, feed_num, feed.id))
             try:
                 feed_data = reader.getFeedContent(
-                    feed, exclude_read, number=max_items_number)
+                    feed, exclude_read, number=max_items_number,
+                    start_time=kv_data.get('start_time'))
+
                 if not feed_data:
                     continue
 
@@ -396,8 +393,11 @@ class KindleReader(object):
                 for item in feed_data['items']:
                     for category in item.get('categories', []):
                         if category.endswith('/state/com.google/reading-list'):
-                            content = item.get('content', item.get('summary', {})).get('content', '')
-                            url     = None
+                            content = item.get('content',
+                                               item.get(
+                                                   'summary', {})).get(
+                                                       'content', '')
+                            url = None
                             for alternate in item.get('alternate', []):
                                 if alternate.get('type', '') == 'text/html':
                                     url = alternate['href']
@@ -427,14 +427,16 @@ class KindleReader(object):
                     logging.info("no update.")
             except Exception, e:
                 logging.error("fail: %s" % e)
-        
+        kv_data.set('start_time', int(time.time()))
+        kv_data.save()
+
         #download image by multithreading
         if downing_images:
             for i in downing_images:
                 q.put(i)
-            threads=[]
+            threads = []
             for i in range(self.thread_numbers):
-                t = ImageDownloader('Thread %s'%(i+1))
+                t = ImageDownloader('Thread %s' % (i+1))
                 threads.append(t)
             for t in threads:
                 t.setDaemon(True)

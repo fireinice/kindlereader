@@ -26,6 +26,7 @@ class PocketService(object):
     @staticmethod
     def getPocketInfo(url, title):
         info = {'url': url,
-                'title': title}
+                'title': title,
+                'tags': 'kindle'}
         return PocketService.SERVICE_URL + urllib.urlencode({
             "info": AESService.getCipheredString(json.dumps(info))})
