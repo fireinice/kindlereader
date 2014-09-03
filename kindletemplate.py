@@ -165,7 +165,7 @@ TEMPLATES['toc.ncx'] = """<?xml version="1.0" encoding="UTF-8"?>
 <navPoint class="article" id="{{ feed_idx }}_{{ item.idx }}" playOrder="{{ item.idx }}">
 <navLabel><text>{{ escape(item.title) }}</text></navLabel>
 <content src="content.html#article_{{ feed_idx }}_{{ item.idx }}" />
-<mbp:meta name="description">{{ escape(item.content[:200]) }}</mbp:meta>
+<mbp:meta name="description">{{ item.desc }}</mbp:meta>
 <mbp:meta name="author">{% if item.author %}{{ item.author }}{% end %}</mbp:meta>
 </navPoint>
 {% end %}

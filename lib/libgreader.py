@@ -24,12 +24,13 @@ import urllib2
 import urlparse
 import time
 from RelatedServices import PocketService
+from tornado import escape
 
 try:
     import json
 except:
     import simplejson as json
-    
+
 try:
     import lib.oauth2 as oauth
     has_oauth = True
@@ -55,6 +56,7 @@ class ItemsContainer(object):
         self.lastUpdated    = None
         self.unread         = 0
         self.continuation   = None
+
     def _getContent(self, excludeRead=False, continuation=None):
         """
         Get content from google reader with specified parameters.
@@ -306,6 +308,7 @@ class Item(object):
             self.content = item['content']
         else:
             self.content = item.get('content', item.get('summary', {})).get('content', '')
+        self.desc = escape.xhtml_escape(self.content[:200])
         self.origin = {'title': '', 'url': ''}
         self.published = item.get('published', '')
         self.idx    = item.get('idx', 0)
