@@ -148,13 +148,13 @@ class KindleReader(object):
         msg['from'] = mail_from
         msg['to'] = mail_to
         msg['subject'] = 'Convert'
-    
+
         htmlText = 'google reader delivery.'
         msg.preamble = htmlText
-    
-        msgText = MIMEText(htmlText, 'html', 'utf-8')  
-        msg.attach(msgText)  
-    
+
+        msgText = MIMEText(htmlText, 'html', 'utf-8')
+        msg.attach(msgText)
+
         att = MIMEText(data, 'base64', 'utf-8')
         att["Content-Type"] = 'application/octet-stream'
         att["Content-Disposition"] = 'attachment; filename="google-reader-%s.mobi"' % time.strftime('%H-%M-%S')
@@ -213,19 +213,28 @@ class KindleReader(object):
             return None
         else:
             fsize = os.path.getsize(mobi_file)
-            logging.info(".mobi save as: %s(%.2fMB)" %  (mobi_file, float(fsize)/(1024*1024)))
+            logging.info(".mobi save as: %s(%.2fMB)" %
+                         (mobi_file, float(fsize)/(1024*1024)))
             return mobi_file
+
+    def is_url_blocked(self, url):
+        if(url.find("feedsportal.com") >= 0 or
+           url.find("feedsky.com") >= 0 or
+           url.startswith("http://union.vancl.com/")):
+            return True
+        else:
+            return False
 
     def parse_summary(self, summary, ref):
         """处理文章"""
 
         soup = BeautifulSoup(summary)
 
-        for span in list(soup.findAll(attrs={ "style" : "display: none;" })):
+        for span in list(soup.findAll(attrs={"style": "display: none;"})):
             span.extract()
 
         for attr in self.remove_attributes:
-            for x in soup.findAll(attrs={attr:True}):
+            for x in soup.findAll(attrs={attr: True}):
                 del x[attr]
 
         for tag in soup.findAll(self.remove_tags):
@@ -234,11 +243,10 @@ class KindleReader(object):
         img_count = 0
         images = []
         for img in list(soup.findAll('img')):
-            if (self.max_image_number >= 0  and img_count >= self.max_image_number) \
-                or img.has_key('src') is False \
-                or img['src'].startswith("http://union.vancl.com/") \
-                or img['src'].startswith("http://www1.feedsky.com/") \
-                or img['src'].startswith("http://feed.feedsky.com/~flare/"):
+            if ((self.max_image_number >= 0 and
+                 img_count >= self.max_image_number) or
+                img.has_key('src') is False or
+                self.is_url_blocked(img['src'])):
                 img.extract()
             else:
                 try:
@@ -285,12 +293,12 @@ class KindleReader(object):
         hash_dir = os.path.join(h[0:1], h[1:2])
         filename = image_guid + '.' + ext
 
-        img_dir  = os.path.join(self.work_dir, 'data', 'images', hash_dir)
+        img_dir = os.path.join(self.work_dir, 'data', 'images', hash_dir)
         fullname = os.path.join(img_dir, filename)
-        
+
         if not os.path.exists(img_dir):
-            os.makedirs( img_dir )
-        
+            os.makedirs(img_dir)
+
         localimage = 'images/%s/%s' % (hash_dir, filename)
         return localimage, fullname
 
