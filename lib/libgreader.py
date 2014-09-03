@@ -630,7 +630,7 @@ class GoogleReader(object):
             parameters['n'] = number
         if start_time:
             print "start from %d" % start_time
-            parameters['nt'] = start_time
+            parameters['ot'] = start_time
         parameters['s'] = urlquote(feed_id)
         contentJson = self.httpGet(url+'/ids/', parameters)
         item_infos = json.loads(contentJson, strict=False)
