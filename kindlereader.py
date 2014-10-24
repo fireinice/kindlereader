@@ -30,7 +30,7 @@ from kindletemplate import TEMPLATES
 work_dir = os.path.dirname(sys.argv[0])
 sys.path.append(os.path.join(work_dir, 'lib'))
 
-from libgreader import *
+from libinoreader2 import Inoreader, InoreaderAuthMethod
 from tornado import template
 from tornado import escape
 from BeautifulSoup import BeautifulSoup
@@ -42,6 +42,7 @@ except ImportError:
     Image = None
 from KVData import KVData
 
+# logging.basicConfig(level=logging.DEBUG)
 socket.setdefaulttimeout(20)
 
 
@@ -312,8 +313,8 @@ class KindleReader(object):
         if not username or not password:
             raise Exception("google reader's username or password is empty!")
 
-        auth = ClientAuth(username, password)
-        reader = GoogleReader(auth)
+        auth = InoreaderAuthMethod(username, password)
+        reader = Inoreader(auth)
         user = reader.getUserInfo()
         reader.buildSubscriptionList()
         categoires = reader.getCategories()
